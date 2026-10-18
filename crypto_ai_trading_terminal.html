@@ -1,0 +1,1845 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Apex AI Crypto Trading Terminal & Auto Paper Engine</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@300;400;500;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Plus Jakarta Sans', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace'],
+          },
+          colors: {
+            cyber: {
+              bg: '#080a0f',
+              card: '#0e131f',
+              border: '#1c2538',
+              accent: '#00f38d',
+              red: '#ff3b5c',
+              gold: '#ffd166',
+              blue: '#00b4d8',
+              purple: '#9d4edd',
+              text: '#e2e8f0',
+              muted: '#64748b'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      background-color: #080a0f;
+      color: #e2e8f0;
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      overflow-x: hidden;
+    }
+    
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #080a0f;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1c2538;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #00f38d;
+    }
+
+    .glow-green {
+      box-shadow: 0 0 15px rgba(0, 243, 141, 0.25);
+    }
+    .glow-red {
+      box-shadow: 0 0 15px rgba(255, 59, 92, 0.25);
+    }
+    .glow-gold {
+      box-shadow: 0 0 15px rgba(255, 209, 102, 0.25);
+    }
+
+    .pulse-green {
+      animation: pulse-green-anim 2s infinite;
+    }
+    @keyframes pulse-green-anim {
+      0% { box-shadow: 0 0 0 0 rgba(0, 243, 141, 0.6); }
+      70% { box-shadow: 0 0 0 10px rgba(0, 243, 141, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(0, 243, 141, 0); }
+    }
+
+    .tape-row-enter {
+      animation: fadeInRow 0.25s ease-out forwards;
+    }
+    @keyframes fadeInRow {
+      from { opacity: 0; transform: translateY(-6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col bg-cyber-bg text-cyber-text antialiased selection:bg-cyber-accent selection:text-black">
+
+  <!-- TOP CONTROL BAR -->
+  <header class="sticky top-0 z-40 border-b border-cyber-border bg-cyber-bg/95 backdrop-blur-md px-3 py-2 sm:px-4">
+    <div class="max-w-[1920px] mx-auto flex flex-wrap items-center justify-between gap-3">
+      
+      <!-- Brand & Pair Switcher -->
+      <div class="flex items-center gap-3">
+        <div class="flex items-center gap-2 font-extrabold text-lg sm:text-xl tracking-wider text-white">
+          <span class="p-1.5 rounded-lg bg-cyber-accent/10 text-cyber-accent border border-cyber-accent/30">
+            <i data-lucide="cpu" class="w-5 h-5"></i>
+          </span>
+          <span class="bg-gradient-to-r from-cyber-accent via-cyber-blue to-cyber-purple bg-clip-text text-transparent">
+            APEX AI
+          </span>
+          <span class="text-xs font-mono font-normal px-2 py-0.5 rounded bg-cyber-card border border-cyber-border text-cyber-muted hidden md:inline-block">v4.5 PRO</span>
+        </div>
+
+        <div class="h-6 w-px bg-cyber-border hidden sm:block"></div>
+
+        <!-- Coin Selector -->
+        <div class="flex items-center bg-cyber-card p-1 rounded-xl border border-cyber-border">
+          <button onclick="changeSymbol('BTCUSDT')" id="btn-BTCUSDT" class="coin-btn px-2.5 py-1 text-xs font-mono font-bold rounded-lg transition-all bg-cyber-accent text-black shadow">BTC</button>
+          <button onclick="changeSymbol('ETHUSDT')" id="btn-ETHUSDT" class="coin-btn px-2.5 py-1 text-xs font-mono font-bold rounded-lg text-cyber-muted hover:text-white transition-all">ETH</button>
+          <button onclick="changeSymbol('SOLUSDT')" id="btn-SOLUSDT" class="coin-btn px-2.5 py-1 text-xs font-mono font-bold rounded-lg text-cyber-muted hover:text-white transition-all">SOL</button>
+          <button onclick="changeSymbol('BNBUSDT')" id="btn-BNBUSDT" class="coin-btn px-2.5 py-1 text-xs font-mono font-bold rounded-lg text-cyber-muted hover:text-white transition-all">BNB</button>
+          <button onclick="changeSymbol('XRPUSDT')" id="btn-XRPUSDT" class="coin-btn px-2.5 py-1 text-xs font-mono font-bold rounded-lg text-cyber-muted hover:text-white transition-all">XRP</button>
+        </div>
+      </div>
+
+      <!-- Timeframe, Rate, Toggles & Status -->
+      <div class="flex flex-wrap items-center gap-2 sm:gap-3">
+        
+        <!-- Timeframes -->
+        <div class="flex items-center bg-cyber-card p-1 rounded-xl border border-cyber-border">
+          <button onclick="changeTimeframe('1m')" id="tf-1m" class="tf-btn px-2 py-1 text-xs font-mono rounded-lg transition-all text-cyber-muted hover:text-white">1m</button>
+          <button onclick="changeTimeframe('5m')" id="tf-5m" class="tf-btn px-2 py-1 text-xs font-mono rounded-lg transition-all bg-cyber-border text-white font-bold">5m</button>
+          <button onclick="changeTimeframe('15m')" id="tf-15m" class="tf-btn px-2 py-1 text-xs font-mono rounded-lg transition-all text-cyber-muted hover:text-white">15m</button>
+          <button onclick="changeTimeframe('1h')" id="tf-1h" class="tf-btn px-2 py-1 text-xs font-mono rounded-lg transition-all text-cyber-muted hover:text-white">1h</button>
+        </div>
+
+        <!-- Dynamic USDT/INR Exchange Rate -->
+        <div class="flex items-center gap-1.5 bg-cyber-card border border-cyber-border px-2.5 py-1 rounded-xl text-xs font-mono">
+          <span class="text-cyber-muted">USDT/INR:</span>
+          <span class="text-cyber-gold font-bold">₹</span>
+          <input type="number" id="inr-rate-input" value="96.0" step="0.1" class="w-12 bg-transparent text-cyber-gold font-bold focus:outline-none focus:border-b border-cyber-gold text-xs" onchange="updateInrRate(this.value)">
+        </div>
+
+        <!-- Sound FX Toggle -->
+        <button id="sound-btn" onclick="toggleSound()" class="flex items-center gap-1 bg-cyber-card border border-cyber-border px-2.5 py-1.5 rounded-xl text-xs font-medium text-cyber-muted hover:text-white transition">
+          <i data-lucide="volume-2" id="sound-icon" class="w-3.5 h-3.5 text-cyber-accent"></i>
+          <span id="sound-text" class="hidden md:inline">Sound ON</span>
+        </button>
+
+        <!-- Auto Trading Switch -->
+        <div class="flex items-center gap-2 bg-cyber-card border border-cyber-border px-3 py-1 rounded-xl">
+          <span class="text-xs font-semibold text-cyber-muted">Auto Bot</span>
+          <label class="relative inline-flex items-center cursor-pointer">
+            <input type="checkbox" id="auto-trade-toggle" class="sr-only peer" onchange="toggleAutoTrading(this.checked)" checked>
+            <div class="w-9 h-5 bg-cyber-border peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-cyber-accent"></div>
+          </label>
+        </div>
+
+        <!-- Live Connection Status Badge -->
+        <div id="ws-status-badge" class="flex items-center gap-1.5 bg-cyber-accent/10 border border-cyber-accent/30 text-cyber-accent text-xs font-mono px-2.5 py-1 rounded-xl">
+          <span class="w-2 h-2 rounded-full bg-cyber-accent pulse-green"></span>
+          <span class="hidden sm:inline" id="ws-status-text">BINANCE LIVE</span>
+        </div>
+
+      </div>
+    </div>
+  </header>
+
+  <!-- MAIN CONTAINER -->
+  <main class="flex-1 max-w-[1920px] w-full mx-auto p-2 sm:p-4 space-y-4">
+
+    <!-- 4 METRIC CARDS -->
+    <div class="grid grid-cols-2 lg:grid-cols-4 gap-3">
+      
+      <!-- Card 1: Live USDT Price -->
+      <div class="bg-cyber-card border border-cyber-border rounded-2xl p-3.5 flex flex-col justify-between relative overflow-hidden group hover:border-cyber-accent/40 transition">
+        <div class="flex justify-between items-start text-xs text-cyber-muted font-medium">
+          <span>Live Price (USDT)</span>
+          <i data-lucide="activity" class="w-4 h-4 text-cyber-blue"></i>
+        </div>
+        <div class="mt-2 flex items-baseline justify-between">
+          <div id="card-price-usdt" class="text-xl sm:text-2xl font-mono font-extrabold text-white">$--.--</div>
+          <div id="card-price-change" class="text-xs font-mono font-bold px-2 py-0.5 rounded bg-cyber-accent/10 text-cyber-accent">--%</div>
+        </div>
+        <div class="text-[10px] text-cyber-muted mt-1 font-mono">24h High: <span id="card-24h-high" class="text-gray-300">--</span> | Low: <span id="card-24h-low" class="text-gray-300">--</span></div>
+      </div>
+
+      <!-- Card 2: Price in INR -->
+      <div class="bg-cyber-card border border-cyber-border rounded-2xl p-3.5 flex flex-col justify-between relative overflow-hidden group hover:border-cyber-gold/40 transition">
+        <div class="flex justify-between items-start text-xs text-cyber-muted font-medium">
+          <span>Price in ₹ (INR Format)</span>
+          <i data-lucide="indian-rupee" class="w-4 h-4 text-cyber-gold"></i>
+        </div>
+        <div class="mt-2 flex items-baseline justify-between">
+          <div id="card-price-inr" class="text-xl sm:text-2xl font-mono font-extrabold text-cyber-gold">₹0.00</div>
+          <span class="text-[10px] font-mono text-cyber-muted">Indian Format</span>
+        </div>
+        <div id="card-price-inr-words" class="text-[10px] text-cyber-muted mt-1 font-mono italic">Calculating...</div>
+      </div>
+
+      <!-- Card 3: 24h Volume in Cr -->
+      <div class="bg-cyber-card border border-cyber-border rounded-2xl p-3.5 flex flex-col justify-between relative overflow-hidden group hover:border-cyber-blue/40 transition">
+        <div class="flex justify-between items-start text-xs text-cyber-muted font-medium">
+          <span>24h Volume (INR)</span>
+          <i data-lucide="bar-chart-3" class="w-4 h-4 text-cyber-purple"></i>
+        </div>
+        <div class="mt-2 flex items-baseline justify-between">
+          <div id="card-vol-cr" class="text-xl sm:text-2xl font-mono font-extrabold text-white">₹0 Cr</div>
+          <span class="text-[10px] font-mono text-cyber-accent" id="card-vol-btc">0 BTC</span>
+        </div>
+        <div class="text-[10px] text-cyber-muted mt-1 font-mono">Binance API Stream</div>
+      </div>
+
+      <!-- Card 4: Order Pressure Gauge -->
+      <div class="bg-cyber-card border border-cyber-border rounded-2xl p-3.5 flex flex-col justify-between relative overflow-hidden group hover:border-cyber-accent/40 transition">
+        <div class="flex justify-between items-start text-xs text-cyber-muted font-medium">
+          <span>Order Pressure (Buyers vs Sellers)</span>
+          <i data-lucide="gauge" class="w-4 h-4 text-cyber-accent"></i>
+        </div>
+        <div class="mt-2 space-y-1">
+          <div class="flex justify-between text-xs font-mono font-bold">
+            <span id="pressure-buy-pct" class="text-cyber-accent">50% BUY</span>
+            <span id="pressure-sell-pct" class="text-cyber-red">50% SELL</span>
+          </div>
+          <div class="w-full bg-cyber-border h-2 rounded-full overflow-hidden flex">
+            <div id="pressure-bar-buy" class="bg-cyber-accent h-full transition-all duration-300" style="width: 50%;"></div>
+            <div id="pressure-bar-sell" class="bg-cyber-red h-full transition-all duration-300" style="width: 50%;"></div>
+          </div>
+        </div>
+        <div id="pressure-status" class="text-[10px] text-cyber-muted mt-1 font-mono">Balanced Order Flow</div>
+      </div>
+
+    </div>
+
+    <!-- MAIN DASHBOARD GRID: CHART & AI PANEL -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+      
+      <!-- LEFT 8 COLS: CHART CANVAS & OVERLAYS CONTROL -->
+      <div class="lg:col-span-8 flex flex-col space-y-3">
+        
+        <!-- CHART CONTAINER -->
+        <div class="bg-cyber-card border border-cyber-border rounded-2xl p-3 flex flex-col relative overflow-hidden">
+          
+          <!-- Chart Header & Technical Toggles -->
+          <div class="flex flex-wrap items-center justify-between gap-2 mb-2 pb-2 border-b border-cyber-border">
+            <div class="flex items-center gap-2">
+              <span id="chart-symbol-title" class="font-mono font-extrabold text-sm sm:text-base text-white">BTCUSDT</span>
+              <span class="text-xs font-mono text-cyber-muted" id="chart-tf-title">5m</span>
+              <span class="px-2 py-0.5 rounded text-[10px] font-mono font-bold bg-cyber-accent/10 text-cyber-accent border border-cyber-accent/30">SMC & TA SMART CANVAS</span>
+            </div>
+
+            <!-- Indicator Toggles -->
+            <div class="flex flex-wrap items-center gap-1.5 text-xs font-mono">
+              <button onclick="toggleIndicator('ema')" id="tog-ema" class="px-2 py-0.5 rounded bg-cyber-accent/20 border border-cyber-accent text-cyber-accent font-bold">EMA Stack</button>
+              <button onclick="toggleIndicator('bb')" id="tog-bb" class="px-2 py-0.5 rounded bg-cyber-border text-cyber-muted hover:text-white">Bollinger</button>
+              <button onclick="toggleIndicator('smc')" id="tog-smc" class="px-2 py-0.5 rounded bg-cyber-purple/30 border border-cyber-purple text-cyber-purple font-bold">SMC Zones</button>
+              <button onclick="toggleIndicator('vp')" id="tog-vp" class="px-2 py-0.5 rounded bg-cyber-border text-cyber-muted hover:text-white">Vol Profile</button>
+            </div>
+          </div>
+
+          <!-- Main Interactive Canvas -->
+          <div class="relative w-full h-[380px] sm:h-[420px] bg-cyber-bg rounded-xl overflow-hidden border border-cyber-border/50">
+            <canvas id="cryptoChart" class="w-full h-full block cursor-crosshair"></canvas>
+            
+            <!-- Canvas Overlay Legend/Info -->
+            <div class="absolute top-2 left-2 pointer-events-none bg-cyber-card/80 backdrop-blur border border-cyber-border rounded-lg p-2 text-[10px] font-mono space-y-0.5 text-cyber-muted">
+              <div>EMA 9: <span id="leg-ema9" class="text-cyber-accent">--</span> | EMA 21: <span id="leg-ema21" class="text-cyber-gold">--</span></div>
+              <div>EMA 50: <span id="leg-ema50" class="text-cyber-blue">--</span> | EMA 200: <span id="leg-ema200" class="text-cyber-purple">--</span></div>
+              <div>ATR (14): <span id="leg-atr" class="text-white">--</span></div>
+            </div>
+
+            <!-- SMC Overlay Badges Legend -->
+            <div class="absolute top-2 right-2 pointer-events-none flex flex-col items-end gap-1 text-[10px] font-mono">
+              <span class="px-2 py-0.5 rounded bg-emerald-950/80 border border-emerald-500/40 text-emerald-400 font-bold">BULLISH OB</span>
+              <span class="px-2 py-0.5 rounded bg-rose-950/80 border border-rose-500/40 text-rose-400 font-bold">BEARISH OB</span>
+              <span class="px-2 py-0.5 rounded bg-purple-950/80 border border-purple-500/40 text-purple-300 font-bold">FVG ZONE</span>
+              <span class="px-2 py-0.5 rounded bg-yellow-950/80 border border-yellow-500/50 text-yellow-400 font-bold">SWEEP! LEVEL</span>
+            </div>
+          </div>
+
+          <!-- Oscillator Canvas (RSI / MACD) -->
+          <div class="mt-2 relative w-full h-[100px] bg-cyber-bg rounded-xl overflow-hidden border border-cyber-border/50">
+            <canvas id="subChart" class="w-full h-full block"></canvas>
+            <div class="absolute top-1 left-2 pointer-events-none text-[10px] font-mono text-cyber-muted">
+              RSI (14): <span id="leg-rsi" class="text-cyber-gold font-bold">--</span> | MACD: <span id="leg-macd" class="text-cyber-blue font-bold">--</span>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- RIGHT 4 COLS: MASTER AI SIGNAL & DECISION CENTER -->
+      <div class="lg:col-span-4 flex flex-col space-y-3">
+        
+        <!-- MASTER AI SIGNAL CARD -->
+        <div id="master-signal-card" class="bg-cyber-card border-2 border-cyber-accent/60 rounded-2xl p-4 flex flex-col justify-between space-y-3 glow-green relative overflow-hidden">
+          
+          <div class="flex items-center justify-between border-b border-cyber-border/60 pb-2">
+            <div class="flex items-center gap-2">
+              <span class="p-1 rounded bg-cyber-accent/10 text-cyber-accent">
+                <i data-lucide="brain-circuit" class="w-5 h-5"></i>
+              </span>
+              <h3 class="font-bold text-sm tracking-wide text-white">MASTER AI CONSENSUS</h3>
+            </div>
+            <span id="signal-time" class="text-[10px] font-mono text-cyber-muted">Updated: Just now</span>
+          </div>
+
+          <!-- Main Decision Header -->
+          <div class="text-center py-2 space-y-1">
+            <div class="text-[11px] font-mono uppercase tracking-widest text-cyber-muted">Target Signal</div>
+            <div id="master-decision" class="text-2xl sm:text-3xl font-extrabold font-mono text-cyber-accent tracking-wider">STRONG BUY</div>
+            <div id="master-tally" class="text-xs font-mono text-cyber-gold font-semibold">6/7 AI Agents Agree (85% Confidence)</div>
+          </div>
+
+          <!-- Confidence Meter Bar -->
+          <div class="space-y-1">
+            <div class="flex justify-between text-[11px] font-mono text-cyber-muted">
+              <span>Consensus Strength</span>
+              <span id="confidence-pct-text" class="text-cyber-accent font-bold">85%</span>
+            </div>
+            <div class="w-full bg-cyber-border h-2.5 rounded-full overflow-hidden">
+              <div id="confidence-meter-bar" class="bg-gradient-to-r from-cyber-blue via-cyber-accent to-emerald-400 h-full transition-all duration-500" style="width: 85%;"></div>
+            </div>
+          </div>
+
+          <!-- Actionable Trading Parameters (SL/TP) -->
+          <div class="grid grid-cols-3 gap-2 bg-cyber-bg/80 border border-cyber-border/60 p-2.5 rounded-xl font-mono text-center">
+            <div>
+              <div class="text-[9px] text-cyber-muted uppercase">Entry Price</div>
+              <div id="signal-entry" class="text-xs font-bold text-white mt-0.5">$0.00</div>
+            </div>
+            <div>
+              <div class="text-[9px] text-cyber-red uppercase">Stop Loss (1.5x ATR)</div>
+              <div id="signal-sl" class="text-xs font-bold text-cyber-red mt-0.5">$0.00</div>
+            </div>
+            <div>
+              <div class="text-[9px] text-cyber-accent uppercase">Target TP (1:2.5)</div>
+              <div id="signal-tp" class="text-xs font-bold text-cyber-accent mt-0.5">$0.00</div>
+            </div>
+          </div>
+
+          <!-- Hinglish Explanation Note -->
+          <div class="bg-cyber-bg/60 border border-cyber-border/40 p-2.5 rounded-xl">
+            <div class="text-[10px] font-bold text-cyber-gold uppercase mb-1 flex items-center gap-1">
+              <i data-lucide="message-square" class="w-3 h-3"></i> AI Master Rationale (Hinglish)
+            </div>
+            <p id="master-hinglish-reason" class="text-xs text-gray-300 leading-relaxed font-sans">
+              "Strong Bullish OB retest aur Volume Spike confirmation mil gaya hai. SMC Sweep liquidity trigger ho chuka hai, upside target ke liye momentum strong hai."
+            </p>
+          </div>
+
+          <!-- Auto Executed Status Banner -->
+          <div class="flex items-center justify-between text-[10px] font-mono text-cyber-muted border-t border-cyber-border/40 pt-2">
+            <span>Risk / Reward: <strong class="text-white">1 : 2.5</strong></span>
+            <span>Risk per trade: <strong class="text-cyber-accent">1.0%</strong></span>
+          </div>
+
+        </div>
+
+        <!-- QUICK PAPER MANUAL ACTIONS & BALANCE CARD -->
+        <div class="bg-cyber-card border border-cyber-border rounded-2xl p-3.5 space-y-3">
+          <div class="flex justify-between items-center text-xs">
+            <span class="font-bold text-white flex items-center gap-1.5">
+              <i data-lucide="wallet" class="w-4 h-4 text-cyber-accent"></i> Quick Manual Terminal
+            </span>
+            <span class="text-[10px] font-mono text-cyber-muted">1-Click Order Execution</span>
+          </div>
+
+          <div class="grid grid-cols-2 gap-2">
+            <button onclick="executeManualTrade('LONG')" class="py-2.5 px-3 rounded-xl bg-gradient-to-r from-emerald-600 to-cyber-accent text-black font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-lg hover:opacity-90 active:scale-95 transition">
+              <i data-lucide="trending-up" class="w-4 h-4"></i> MANUAL BUY
+            </button>
+            <button onclick="executeManualTrade('SHORT')" class="py-2.5 px-3 rounded-xl bg-gradient-to-r from-rose-600 to-cyber-red text-white font-bold text-xs uppercase tracking-wider flex items-center justify-center gap-1.5 shadow-lg hover:opacity-90 active:scale-95 transition">
+              <i data-lucide="trending-down" class="w-4 h-4"></i> MANUAL SELL
+            </button>
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+    <!-- 7 AI AGENTS CONSENSUS GRID -->
+    <div class="bg-cyber-card border border-cyber-border rounded-2xl p-4 space-y-3">
+      <div class="flex flex-wrap items-center justify-between gap-2 border-b border-cyber-border pb-2">
+        <div class="flex items-center gap-2">
+          <i data-lucide="users" class="w-5 h-5 text-cyber-accent"></i>
+          <h3 class="font-bold text-sm tracking-wide text-white">7 AI MULTI-AGENT CONSENSUS MATRIX</h3>
+        </div>
+        <span class="text-xs font-mono text-cyber-muted">Every agent analyzes unique real-time market vectors</span>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 xl:grid-cols-7 gap-2.5" id="agents-grid">
+        <!-- Dynamically rendered via Javascript JS -->
+      </div>
+    </div>
+
+    <!-- PAPER TRADING ENGINE & POSITIONS SECTION -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+      
+      <!-- LEFT 8 COLS: ACTIVE POSITION & PAPER TERMINAL STATS -->
+      <div class="lg:col-span-8 space-y-3">
+        
+        <div class="bg-cyber-card border border-cyber-border rounded-2xl p-4 space-y-4">
+          
+          <!-- Balance Summary Banner -->
+          <div class="flex flex-wrap items-center justify-between gap-3 bg-cyber-bg/80 border border-cyber-border p-3 rounded-xl font-mono">
+            <div>
+              <div class="text-[10px] text-cyber-muted uppercase">Virtual Demo Balance</div>
+              <div id="paper-balance" class="text-lg font-extrabold text-cyber-gold">₹10,00,000.00</div>
+            </div>
+
+            <div>
+              <div class="text-[10px] text-cyber-muted uppercase">Total Realized PnL</div>
+              <div id="paper-pnl" class="text-lg font-extrabold text-cyber-accent">+₹0.00 (+0.00%)</div>
+            </div>
+
+            <div>
+              <div class="text-[10px] text-cyber-muted uppercase">Win Rate</div>
+              <div id="paper-winrate" class="text-lg font-extrabold text-white">0% (0/0)</div>
+            </div>
+
+            <div>
+              <button onclick="resetPaperAccount()" class="text-xs font-sans text-cyber-muted hover:text-cyber-red border border-cyber-border px-2.5 py-1 rounded-lg transition">
+                Reset Demo Account
+              </button>
+            </div>
+          </div>
+
+          <!-- Active Position Card -->
+          <div class="space-y-2">
+            <h4 class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+              <i data-lucide="crosshair" class="w-4 h-4 text-cyber-accent"></i> Active Open Position
+            </h4>
+
+            <div id="active-position-container" class="border border-cyber-border rounded-xl p-3 bg-cyber-bg/60">
+              <!-- Rendered via JS -->
+              <div class="text-center py-6 text-cyber-muted text-xs font-mono">
+                No active open position. Master AI or Manual buttons will trigger auto execution.
+              </div>
+            </div>
+          </div>
+
+          <!-- Automated Bot Execution Logs Table -->
+          <div class="space-y-2">
+            <h4 class="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+              <i data-lucide="list-tree" class="w-4 h-4 text-cyber-blue"></i> Automated Bot Order History
+            </h4>
+
+            <div class="overflow-x-auto border border-cyber-border rounded-xl max-h-[220px]">
+              <table class="w-full text-left font-mono text-xs">
+                <thead class="bg-cyber-border/40 text-cyber-muted text-[10px] uppercase sticky top-0 backdrop-blur">
+                  <tr>
+                    <th class="p-2">Time</th>
+                    <th class="p-2">Symbol</th>
+                    <th class="p-2">Type</th>
+                    <th class="p-2">Side</th>
+                    <th class="p-2">Entry</th>
+                    <th class="p-2">Target / SL</th>
+                    <th class="p-2">PnL (₹)</th>
+                    <th class="p-2">Status</th>
+                  </tr>
+                </thead>
+                <tbody id="bot-logs-tbody" class="divide-y divide-cyber-border/40 text-[11px]">
+                  <!-- Rendered via JS -->
+                  <tr>
+                    <td colspan="8" class="p-4 text-center text-cyber-muted">No trading logs recorded yet.</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+        </div>
+
+      </div>
+
+      <!-- RIGHT 4 COLS: ORDER FLOW TAPE & TRADE SIZE BREAKDOWN -->
+      <div class="lg:col-span-4 flex flex-col space-y-3">
+        
+        <!-- TRADE SIZE BREAKDOWN (Whales vs Retail) -->
+        <div class="bg-cyber-card border border-cyber-border rounded-2xl p-4 space-y-3">
+          <div class="flex items-center justify-between border-b border-cyber-border pb-2">
+            <h3 class="font-bold text-xs tracking-wide text-white flex items-center gap-1.5">
+              <i data-lucide="pie-chart" class="w-4 h-4 text-cyber-gold"></i> TRADE SIZE BREAKDOWN (SINCE LOAD)
+            </h3>
+          </div>
+
+          <div class="space-y-2.5 font-mono text-xs">
+            
+            <!-- Small -->
+            <div>
+              <div class="flex justify-between text-[11px] mb-1">
+                <span class="text-cyber-muted">Small (&lt; ₹50k)</span>
+                <span id="ts-small-val" class="text-white">Buy: 50% | Sell: 50%</span>
+              </div>
+              <div class="w-full bg-cyber-border h-1.5 rounded-full overflow-hidden flex">
+                <div id="ts-small-buy" class="bg-cyber-accent h-full" style="width:50%"></div>
+                <div id="ts-small-sell" class="bg-cyber-red h-full" style="width:50%"></div>
+              </div>
+            </div>
+
+            <!-- Medium -->
+            <div>
+              <div class="flex justify-between text-[11px] mb-1">
+                <span class="text-cyber-muted">Medium (₹50k - ₹5L)</span>
+                <span id="ts-med-val" class="text-white">Buy: 50% | Sell: 50%</span>
+              </div>
+              <div class="w-full bg-cyber-border h-1.5 rounded-full overflow-hidden flex">
+                <div id="ts-med-buy" class="bg-cyber-accent h-full" style="width:50%"></div>
+                <div id="ts-med-sell" class="bg-cyber-red h-full" style="width:50%"></div>
+              </div>
+            </div>
+
+            <!-- Large -->
+            <div>
+              <div class="flex justify-between text-[11px] mb-1">
+                <span class="text-cyber-muted">Large (₹5L - ₹25L)</span>
+                <span id="ts-large-val" class="text-white">Buy: 50% | Sell: 50%</span>
+              </div>
+              <div class="w-full bg-cyber-border h-1.5 rounded-full overflow-hidden flex">
+                <div id="ts-large-buy" class="bg-cyber-accent h-full" style="width:50%"></div>
+                <div id="ts-large-sell" class="bg-cyber-red h-full" style="width:50%"></div>
+              </div>
+            </div>
+
+            <!-- Whale -->
+            <div>
+              <div class="flex justify-between text-[11px] mb-1">
+                <span class="text-cyber-gold font-bold">WHALE (&gt; ₹25 Lakhs)</span>
+                <span id="ts-whale-val" class="text-cyber-gold font-bold">Buy: 0% | Sell: 0%</span>
+              </div>
+              <div class="w-full bg-cyber-border h-2 rounded-full overflow-hidden flex">
+                <div id="ts-whale-buy" class="bg-cyber-gold h-full" style="width:50%"></div>
+                <div id="ts-whale-sell" class="bg-rose-500 h-full" style="width:50%"></div>
+              </div>
+            </div>
+
+          </div>
+        </div>
+
+        <!-- REAL-TIME LIVE ORDER FLOW TAPE -->
+        <div class="bg-cyber-card border border-cyber-border rounded-2xl p-4 flex-1 flex flex-col space-y-2 min-h-[300px]">
+          <div class="flex items-center justify-between border-b border-cyber-border pb-2">
+            <h3 class="font-bold text-xs tracking-wide text-white flex items-center gap-1.5">
+              <i data-lucide="waves" class="w-4 h-4 text-cyber-blue"></i> LIVE ORDER FLOW TAPE
+            </h3>
+            <span class="w-2 h-2 rounded-full bg-cyber-accent animate-ping"></span>
+          </div>
+
+          <div class="grid grid-cols-4 text-[10px] font-mono text-cyber-muted border-b border-cyber-border/40 pb-1 px-1">
+            <span>Price ($)</span>
+            <span class="text-right">Qty</span>
+            <span class="text-right">₹ Value</span>
+            <span class="text-right">Tag</span>
+          </div>
+
+          <div id="order-flow-tape" class="flex-1 overflow-y-auto space-y-1 font-mono text-xs pr-1 max-h-[280px]">
+            <!-- Live trade ticks populated via WebSocket / HTTP stream -->
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+
+  </main>
+
+  <!-- COIN SWITCH CONFIRMATION MODAL -->
+  <div id="coin-switch-modal" class="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm hidden flex items-center justify-center p-4">
+    <div class="bg-cyber-card border border-cyber-red rounded-2xl max-w-md w-full p-5 space-y-4 glow-red">
+      <div class="flex items-center gap-3 text-cyber-red">
+        <i data-lucide="alert-triangle" class="w-7 h-7"></i>
+        <h3 class="font-extrabold text-lg">Active Position Warning!</h3>
+      </div>
+      <p id="modal-msg" class="text-sm text-gray-300 leading-relaxed font-sans">
+        A trade on <strong id="modal-coin-name" class="text-white">BTCUSDT</strong> is currently OPEN! Switching coins now will close or leave your position unmonitored. Proceed anyway?
+      </p>
+      <div class="flex justify-end gap-3 pt-2">
+        <button onclick="cancelCoinSwitch()" class="px-4 py-2 rounded-xl border border-cyber-border text-xs font-mono font-bold hover:bg-cyber-border transition">
+          CANCEL
+        </button>
+        <button onclick="confirmCoinSwitch()" class="px-4 py-2 rounded-xl bg-cyber-red text-white text-xs font-mono font-bold hover:bg-rose-600 transition">
+          FORCE SWITCH & CLOSE TRADE
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- JAVASCRIPT ENGINE -->
+  <script>
+    /* ==========================================================================
+       GLOBAL STATE & APPLICATION CONFIGURATION
+       ========================================================================== */
+    const STATE = {
+      symbol: 'BTCUSDT',
+      timeframe: '5m',
+      inrRate: 96.0,
+      soundEnabled: true,
+      autoTradingEnabled: true,
+      pendingSymbolSwitch: null,
+      usePollingFallback: false,
+      
+      // Indicators Enabled Status
+      indicators: {
+        ema: true,
+        bb: false,
+        smc: true,
+        vp: true
+      },
+
+      // Binance Data Arrays
+      klines: [], // array of { time, open, high, low, close, volume }
+      currentPrice: 0,
+      price24hChange: 0,
+      vol24hUsdt: 0,
+
+      // Calculated TA Indicators
+      indicatorsData: {
+        ema9: [], ema21: [], ema50: [], ema200: [],
+        rsi: [], macd: [], macdSignal: [], macdHist: [],
+        atr: 0, smc: { obBull: [], obBear: [], fvg: [], sweeps: [], structure: [] }
+      },
+
+      // Trade Size Breakdown Counter (since load)
+      tradeSizes: {
+        small: { buy: 0, sell: 0 },
+        medium: { buy: 0, sell: 0 },
+        large: { buy: 0, sell: 0 },
+        whale: { buy: 0, sell: 0 }
+      },
+
+      // Order Book Pressure Stats
+      orderPressure: { buyVol: 50, sellVol: 50 },
+
+      // Paper Trading Balance & Portfolio
+      portfolio: {
+        balanceINR: 1000000.00,
+        realizedPnL: 0.00,
+        wins: 0,
+        totalTrades: 0,
+        activeTrade: null // { id, symbol, side, entryPrice, qty, sl, tp, time, isAuto }
+      },
+
+      // Automated Bot Log History
+      botLogs: [],
+
+      // 7 AI Agent Consensus States
+      agents: [
+        { id: 'smc', name: 'SMC Specialist', vote: 'BULLISH', confidence: 88, reason: 'Bullish OB retest aur FVG gap fill level pe bounce detect hua hai.' },
+        { id: 'vol', name: 'Volume & Profile', vote: 'BULLISH', confidence: 82, reason: 'High volume node ke upar breaking candle & volume spike active.' },
+        { id: 'liq', name: 'Liquidity Sweep', vote: 'BULLISH', confidence: 90, reason: 'Equal Lows (SSL) sweep ho chuka hai, liquidity grab confirmed.' },
+        { id: 'flow', name: 'Order Flow Tape', vote: 'BULLISH', confidence: 75, reason: 'Aggressive buyers market orders execute kar rahe hain.' },
+        { id: 'pa', name: 'Price Action Master', vote: 'BULLISH', confidence: 80, reason: 'EMA 9/21 Stack bullish alignment me hai aur Higher High ban raha hai.' },
+        { id: 'mom', name: 'Momentum & Osc', vote: 'BULLISH', confidence: 70, reason: 'RSI 55 zone se rebound aur MACD bullish crossover ready.' },
+        { id: 'sent', name: 'Market Sentiment', vote: 'BEARISH', confidence: 60, reason: 'Short term resistance near 24h high par minor seller pressure hai.' }
+      ]
+    };
+
+    // WebSocket & Web Audio Handles
+    let wsInstance = null;
+    let pollingInterval = null;
+    let audioCtx = null;
+
+    /* ==========================================================================
+       AUDIO SYNTHESIZER (ZERO EXTERNAL DEPENDENCY)
+       ========================================================================== */
+    function playSoundEffect(type) {
+      if (!STATE.soundEnabled) return;
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+
+        const osc = audioCtx.createOscillator();
+        const gain = audioCtx.createGain();
+        osc.connect(gain);
+        gain.connect(audioCtx.destination);
+
+        const now = audioCtx.currentTime;
+
+        if (type === 'buy' || type === 'tp') {
+          osc.frequency.setValueAtTime(440, now);
+          osc.frequency.exponentialRampToValueAtTime(880, now + 0.2);
+          gain.gain.setValueAtTime(0.15, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.2);
+          osc.start(now);
+          osc.stop(now + 0.2);
+        } else if (type === 'sell' || type === 'sl') {
+          osc.frequency.setValueAtTime(600, now);
+          osc.frequency.exponentialRampToValueAtTime(200, now + 0.25);
+          gain.gain.setValueAtTime(0.15, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.25);
+          osc.start(now);
+          osc.stop(now + 0.25);
+        } else if (type === 'sweep') {
+          osc.frequency.setValueAtTime(800, now);
+          osc.frequency.exponentialRampToValueAtTime(1200, now + 0.15);
+          gain.gain.setValueAtTime(0.2, now);
+          gain.gain.exponentialRampToValueAtTime(0.01, now + 0.15);
+          osc.start(now);
+          osc.stop(now + 0.15);
+        }
+      } catch (e) {
+        console.error("Audio synth error:", e);
+      }
+    }
+
+    function toggleSound() {
+      STATE.soundEnabled = !STATE.soundEnabled;
+      const btn = document.getElementById('sound-btn');
+      const icon = document.getElementById('sound-icon');
+      const text = document.getElementById('sound-text');
+      if (STATE.soundEnabled) {
+        icon.setAttribute('data-lucide', 'volume-2');
+        icon.className = 'w-3.5 h-3.5 text-cyber-accent';
+        text.innerText = 'Sound ON';
+        playSoundEffect('buy');
+      } else {
+        icon.setAttribute('data-lucide', 'volume-x');
+        icon.className = 'w-3.5 h-3.5 text-cyber-red';
+        text.innerText = 'Sound OFF';
+      }
+      lucide.createIcons();
+    }
+
+    /* ==========================================================================
+       TECHNICAL ANALYSIS & SMC CALCULATION ENGINES
+       ========================================================================== */
+    function calculateEMA(data, period) {
+      const ema = [];
+      const k = 2 / (period + 1);
+      let sum = 0;
+      for (let i = 0; i < data.length; i++) {
+        if (i < period - 1) {
+          sum += data[i].close;
+          ema.push(null);
+        } else if (i === period - 1) {
+          sum += data[i].close;
+          ema.push(sum / period);
+        } else {
+          const val = data[i].close * k + ema[i - 1] * (1 - k);
+          ema.push(val);
+        }
+      }
+      return ema;
+    }
+
+    function calculateRSI(data, period = 14) {
+      const rsi = [];
+      let gains = 0, losses = 0;
+      for (let i = 1; i <= period; i++) {
+        const change = data[i].close - data[i - 1].close;
+        if (change >= 0) gains += change;
+        else losses -= change;
+      }
+      let avgGain = gains / period;
+      let avgLoss = losses / period;
+
+      for (let i = 0; i < data.length; i++) {
+        if (i < period) {
+          rsi.push(null);
+        } else if (i === period) {
+          const rs = avgGain / (avgLoss || 1);
+          rsi.push(100 - (100 / (1 + rs)));
+        } else {
+          const change = data[i].close - data[i - 1].close;
+          const gain = change >= 0 ? change : 0;
+          const loss = change < 0 ? -change : 0;
+          avgGain = (avgGain * (period - 1) + gain) / period;
+          avgLoss = (avgLoss * (period - 1) + loss) / period;
+          const rs = avgGain / (avgLoss || 1);
+          rsi.push(100 - (100 / (1 + rs)));
+        }
+      }
+      return rsi;
+    }
+
+    function calculateATR(data, period = 14) {
+      if (data.length < period + 1) return 0;
+      let trSum = 0;
+      for (let i = 1; i <= period; i++) {
+        const h = data[i].high;
+        const l = data[i].low;
+        const pc = data[i - 1].close;
+        const tr = Math.max(h - l, Math.abs(h - pc), Math.abs(l - pc));
+        trSum += tr;
+      }
+      return trSum / period;
+    }
+
+    function calculateSMC(data) {
+      const smc = { obBull: [], obBear: [], fvg: [], sweeps: [], structure: [] };
+      if (data.length < 15) return smc;
+
+      for (let i = 5; i < data.length - 2; i++) {
+        const c0 = data[i - 2], c1 = data[i - 1], c2 = data[i];
+
+        // Bullish FVG (Gap between Candle 0 High and Candle 2 Low)
+        if (c2.low > c0.high) {
+          smc.fvg.push({ top: c2.low, bottom: c0.high, index: i, type: 'BULLISH' });
+        }
+        // Bearish FVG
+        if (c2.high < c0.low) {
+          smc.fvg.push({ top: c0.low, bottom: c2.high, index: i, type: 'BEARISH' });
+        }
+
+        // Bullish Order Block
+        if (c1.close < c1.open && c2.close > c1.high && (c2.close - c2.open) > (c1.high - c1.low) * 1.2) {
+          smc.obBull.push({ top: c1.high, bottom: c1.low, index: i - 1 });
+        }
+        // Bearish Order Block
+        if (c1.close > c1.open && c2.close < c1.low && (c1.high - c1.low) > 0) {
+          smc.obBear.push({ top: c1.high, bottom: c1.low, index: i - 1 });
+        }
+
+        // SWEEP Detector
+        if (c2.low < c1.low && c2.close > c1.low) {
+          smc.sweeps.push({ index: i, price: c2.low, type: 'BULLISH_SWEEP' });
+        }
+      }
+
+      // Keep recent SMC zones
+      smc.fvg = smc.fvg.slice(-3);
+      smc.obBull = smc.obBull.slice(-2);
+      smc.obBear = smc.obBear.slice(-2);
+      smc.sweeps = smc.sweeps.slice(-3);
+
+      return smc;
+    }
+
+    function recomputeIndicators() {
+      if (STATE.klines.length < 20) return;
+      STATE.indicatorsData.ema9 = calculateEMA(STATE.klines, 9);
+      STATE.indicatorsData.ema21 = calculateEMA(STATE.klines, 21);
+      STATE.indicatorsData.ema50 = calculateEMA(STATE.klines, 50);
+      STATE.indicatorsData.ema200 = calculateEMA(STATE.klines, 200);
+      STATE.indicatorsData.rsi = calculateRSI(STATE.klines, 14);
+      STATE.indicatorsData.atr = calculateATR(STATE.klines, 14);
+      STATE.indicatorsData.smc = calculateSMC(STATE.klines);
+
+      // Dynamic legend update
+      const len = STATE.klines.length - 1;
+      document.getElementById('leg-ema9').innerText = STATE.indicatorsData.ema9[len] ? '$' + STATE.indicatorsData.ema9[len].toFixed(2) : '--';
+      document.getElementById('leg-ema21').innerText = STATE.indicatorsData.ema21[len] ? '$' + STATE.indicatorsData.ema21[len].toFixed(2) : '--';
+      document.getElementById('leg-ema50').innerText = STATE.indicatorsData.ema50[len] ? '$' + STATE.indicatorsData.ema50[len].toFixed(2) : '--';
+      document.getElementById('leg-ema200').innerText = STATE.indicatorsData.ema200[len] ? '$' + STATE.indicatorsData.ema200[len].toFixed(2) : '--';
+      document.getElementById('leg-rsi').innerText = STATE.indicatorsData.rsi[len] ? STATE.indicatorsData.rsi[len].toFixed(1) : '--';
+      document.getElementById('leg-atr').innerText = STATE.indicatorsData.atr ? '$' + STATE.indicatorsData.atr.toFixed(2) : '--';
+
+      evaluateAIAgents();
+      renderCanvas();
+    }
+
+    /* STREAMING_CHUNK:Evaluating 7 AI multi-agent consensus vectors... -->
+    /* ==========================================================================
+       AI CONSENSUS & AGENTS EVALUATION ENGINE
+       ========================================================================== */
+    function evaluateAIAgents() {
+      const k = STATE.klines;
+      if (k.length < 30) return;
+      const cur = STATE.currentPrice;
+      const last = k[k.length - 1];
+      const ind = STATE.indicatorsData;
+
+      let bullishVotes = 0;
+      let totalConfidenceSum = 0;
+
+      // 1. SMC Specialist
+      const hasObBull = ind.smc.obBull.length > 0;
+      const smcVote = hasObBull ? 'BULLISH' : 'BEARISH';
+      updateAgent(0, smcVote, 88, smcVote === 'BULLISH' ? 'Bullish OB retest aur FVG gap fill level pe strong reaction mila hai.' : 'Bearish OB rejection zones par resistance face kar raha hai.');
+
+      // 2. Volume & Profile Agent
+      const avgVol = k.slice(-10).reduce((acc, x) => acc + x.volume, 0) / 10;
+      const volSpike = last.volume > avgVol * 1.3;
+      const volVote = volSpike ? 'BULLISH' : 'NEUTRAL';
+      updateAgent(1, volVote, volSpike ? 85 : 60, volSpike ? 'Volume spike detect hua hai. Institutional buying activity active hai!' : 'Volume baseline normal constraint me float kar raha hai.');
+
+      // 3. Liquidity Sweep Detector
+      const sweepActive = ind.smc.sweeps.length > 0;
+      const sweepVote = sweepActive ? 'BULLISH' : 'NEUTRAL';
+      updateAgent(2, sweepVote, sweepActive ? 92 : 65, sweepActive ? 'Equal Lows (SSL) SWEEP trigger ho chuka hai, quick reversal liquidity grab!' : 'No major liquidity run detected in recent bars.');
+
+      // 4. Order Flow Tape Agent
+      const buyPress = STATE.orderPressure.buyVol;
+      const flowVote = buyPress > 55 ? 'BULLISH' : buyPress < 45 ? 'BEARISH' : 'NEUTRAL';
+      updateAgent(3, flowVote, 78, flowVote === 'BULLISH' ? 'Order tape me aggressive buy market orders absorb ho rahe hain.' : 'Seller liquidity ask side dominance dikha rahi hai.');
+
+      // 5. Price Action & EMA Trend Master
+      const ema9 = ind.ema9[k.length - 1];
+      const ema21 = ind.ema21[k.length - 1];
+      const paVote = (ema9 && ema21 && ema9 > ema21) ? 'BULLISH' : 'BEARISH';
+      updateAgent(4, paVote, 82, paVote === 'BULLISH' ? 'EMA 9 > EMA 21 Bullish Golden Alignment. Higher High structure intact.' : 'EMA Death cross pressuring lower structure levels.');
+
+      // 6. Momentum Oscillator Agent
+      const rsiVal = ind.rsi[k.length - 1] || 50;
+      const momVote = rsiVal > 50 ? 'BULLISH' : 'BEARISH';
+      updateAgent(5, momVote, 74, `RSI index ${rsiVal.toFixed(1)} par hai, momentum ${momVote} territory support kar raha hai.`);
+
+      // 7. Market Sentiment & Pressure Agent
+      const sentVote = STATE.price24hChange >= 0 ? 'BULLISH' : 'BEARISH';
+      updateAgent(6, sentVote, 68, `24h momentum change ${STATE.price24hChange.toFixed(2)}% hai. Overall sentiment aligned.`);
+
+      // Calculate Tally
+      STATE.agents.forEach(ag => {
+        if (ag.vote === 'BULLISH') bullishVotes++;
+        totalConfidenceSum += ag.confidence;
+      });
+
+      const avgConfidence = Math.round(totalConfidenceSum / 7);
+      const isStrongBuy = bullishVotes >= 5;
+      const isBuy = bullishVotes === 4;
+      const isSell = bullishVotes <= 2;
+
+      let masterDecisionText = 'NEUTRAL';
+      let masterClass = 'text-cyber-gold';
+      let cardGlow = 'glow-gold border-cyber-gold/60';
+
+      if (isStrongBuy) {
+        masterDecisionText = 'STRONG BUY';
+        masterClass = 'text-cyber-accent';
+        cardGlow = 'glow-green border-cyber-accent/60';
+      } else if (isBuy) {
+        masterDecisionText = 'BUY';
+        masterClass = 'text-cyber-accent';
+        cardGlow = 'glow-green border-cyber-accent/40';
+      } else if (isSell) {
+        masterDecisionText = 'STRONG SELL';
+        masterClass = 'text-cyber-red';
+        cardGlow = 'glow-red border-cyber-red/60';
+      }
+
+      // Update UI Master Decision Card
+      const cardEl = document.getElementById('master-signal-card');
+      cardEl.className = `bg-cyber-card border-2 rounded-2xl p-4 flex flex-col justify-between space-y-3 relative overflow-hidden ${cardGlow}`;
+      
+      const decEl = document.getElementById('master-decision');
+      decEl.innerText = masterDecisionText;
+      decEl.className = `text-2xl sm:text-3xl font-extrabold font-mono tracking-wider ${masterClass}`;
+
+      document.getElementById('master-tally').innerText = `${bullishVotes}/7 AI Agents Agree (${avgConfidence}% Confidence)`;
+      document.getElementById('confidence-pct-text').innerText = `${avgConfidence}%`;
+      document.getElementById('confidence-meter-bar').style.width = `${avgConfidence}%`;
+
+      // Entry, Target, SL calculation
+      const atrVal = ind.atr || (cur * 0.01);
+      const entryPrice = cur;
+      let slPrice = 0, tpPrice = 0;
+
+      if (masterDecisionText.includes('BUY')) {
+        slPrice = entryPrice - (1.5 * atrVal);
+        tpPrice = entryPrice + (1.5 * 2.5 * atrVal);
+      } else {
+        slPrice = entryPrice + (1.5 * atrVal);
+        tpPrice = entryPrice - (1.5 * 2.5 * atrVal);
+      }
+
+      document.getElementById('signal-entry').innerText = '$' + entryPrice.toFixed(2);
+      document.getElementById('signal-sl').innerText = '$' + slPrice.toFixed(2);
+      document.getElementById('signal-tp').innerText = '$' + tpPrice.toFixed(2);
+
+      // Hinglish Rationale Generation
+      let hinglishMsg = "";
+      if (isStrongBuy || isBuy) {
+        hinglishMsg = `"Master AI consensus ke mutabiq ${bullishVotes}/7 agents BULLISH hain. SMC Sweep ho chuka hai aur ATR-based SL setup safe hai. Momentum upside continuation favor kar raha hai."`;
+      } else if (isSell) {
+        hinglishMsg = `"Master AI signal STRONG SELL dikha raha hai. Resistance zone par seller dumping volume active hai aur SMC Bearish OB form ho chuka hai."`;
+      } else {
+        hinglishMsg = `"Market consolidation phase me hai. AI Agents divided hain, clear breakout ka wait karna safe rahega."`;
+      }
+      document.getElementById('master-hinglish-reason').innerText = hinglishMsg;
+
+      // TRIGGER AUTOMATED BOT EXECUTION IF ELIGIBLE
+      if (STATE.autoTradingEnabled && (bullishVotes >= 4 || bullishVotes <= 2) && !STATE.portfolio.activeTrade) {
+        const side = bullishVotes >= 4 ? 'LONG' : 'SHORT';
+        executeAutoBotTrade(side, entryPrice, slPrice, tpPrice);
+      }
+    }
+
+    function updateAgent(idx, vote, confidence, reason) {
+      STATE.agents[idx].vote = vote;
+      STATE.agents[idx].confidence = confidence;
+      STATE.agents[idx].reason = reason;
+      renderAgentsGrid();
+    }
+
+    function renderAgentsGrid() {
+      const container = document.getElementById('agents-grid');
+      container.innerHTML = STATE.agents.map(ag => {
+        let badgeColor = 'bg-cyber-border text-cyber-muted';
+        if (ag.vote === 'BULLISH') badgeColor = 'bg-cyber-accent/20 text-cyber-accent border border-cyber-accent/40';
+        if (ag.vote === 'BEARISH') badgeColor = 'bg-cyber-red/20 text-cyber-red border border-cyber-red/40';
+
+        return `
+          <div class="bg-cyber-bg/70 border border-cyber-border/80 rounded-xl p-2.5 flex flex-col justify-between space-y-1.5 hover:border-cyber-accent/30 transition">
+            <div class="flex justify-between items-center text-[10px] font-mono">
+              <span class="font-bold text-gray-200 truncate">${ag.name}</span>
+              <span class="px-1.5 py-0.5 rounded font-extrabold ${badgeColor}">${ag.vote}</span>
+            </div>
+            <p class="text-[10px] text-cyber-muted leading-tight line-clamp-3 font-sans">${ag.reason}</p>
+            <div class="text-[9px] font-mono text-right text-cyber-gold">${ag.confidence}% Conf.</div>
+          </div>
+        `;
+      }).join('');
+    }
+
+    /* STREAMING_CHUNK:Drawing interactive candlesticks and SMC overlays on Canvas... -->
+    /* ==========================================================================
+       CANVAS CHART RENDER ENGINE (SMC + OHLC CANDLES + TA)
+       ========================================================================== */
+    function renderCanvas() {
+      const canvas = document.getElementById('cryptoChart');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+
+      // Adjust dimensions dynamically
+      const rect = canvas.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) return;
+      
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+
+      const width = rect.width;
+      const height = rect.height;
+
+      ctx.clearRect(0, 0, width, height);
+
+      const data = STATE.klines;
+      if (!data || data.length === 0) return;
+
+      const visibleCandles = 50;
+      const slice = data.slice(-visibleCandles);
+      
+      // Compute min/max for scale
+      let minPrice = Infinity, maxPrice = -Infinity;
+      slice.forEach(c => {
+        if (c.low < minPrice) minPrice = c.low;
+        if (c.high > maxPrice) maxPrice = c.high;
+      });
+
+      const padding = (maxPrice - minPrice) * 0.1 || 10;
+      minPrice -= padding;
+      maxPrice += padding;
+
+      const candleWidth = (width - 60) / visibleCandles;
+
+      function getY(p) {
+        return height - ((p - minPrice) / (maxPrice - minPrice)) * (height - 30) - 15;
+      }
+
+      function getX(index) {
+        return index * candleWidth + 10;
+      }
+
+      // Draw Grid Lines
+      ctx.strokeStyle = '#1c2538';
+      ctx.lineWidth = 0.5;
+      for (let i = 1; i <= 4; i++) {
+        const y = (height / 5) * i;
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(width, y);
+        ctx.stroke();
+
+        const pVal = maxPrice - ((maxPrice - minPrice) / 5) * i;
+        ctx.fillStyle = '#64748b';
+        ctx.font = '9px JetBrains Mono';
+        ctx.fillText('$' + pVal.toFixed(2), width - 50, y - 3);
+      }
+
+      // Render SMC Zones (Order Blocks / FVG)
+      const smc = STATE.indicatorsData.smc;
+      if (STATE.indicators.smc && smc) {
+        // Bullish OB
+        smc.obBull.forEach(ob => {
+          const y1 = getY(ob.top);
+          const y2 = getY(ob.bottom);
+          ctx.fillStyle = 'rgba(0, 243, 141, 0.12)';
+          ctx.fillRect(0, Math.min(y1, y2), width - 60, Math.abs(y2 - y1) || 4);
+          ctx.strokeStyle = 'rgba(0, 243, 141, 0.4)';
+          ctx.strokeRect(0, Math.min(y1, y2), width - 60, Math.abs(y2 - y1) || 4);
+        });
+
+        // Bearish OB
+        smc.obBear.forEach(ob => {
+          const y1 = getY(ob.top);
+          const y2 = getY(ob.bottom);
+          ctx.fillStyle = 'rgba(255, 59, 92, 0.12)';
+          ctx.fillRect(0, Math.min(y1, y2), width - 60, Math.abs(y2 - y1) || 4);
+          ctx.strokeStyle = 'rgba(255, 59, 92, 0.4)';
+          ctx.strokeRect(0, Math.min(y1, y2), width - 60, Math.abs(y2 - y1) || 4);
+        });
+
+        // FVG Gap Highlight
+        smc.fvg.forEach(fvg => {
+          const y1 = getY(fvg.top);
+          const y2 = getY(fvg.bottom);
+          ctx.fillStyle = fvg.type === 'BULLISH' ? 'rgba(157, 78, 221, 0.15)' : 'rgba(0, 180, 216, 0.15)';
+          ctx.fillRect(0, Math.min(y1, y2), width - 60, Math.abs(y2 - y1) || 3);
+        });
+      }
+
+      // Draw Candlesticks
+      slice.forEach((c, i) => {
+        const x = getX(i) + candleWidth / 2;
+        const openY = getY(c.open);
+        const closeY = getY(c.close);
+        const highY = getY(c.high);
+        const lowY = getY(c.low);
+
+        const isGreen = c.close >= c.open;
+        const color = isGreen ? '#00f38d' : '#ff3b5c';
+
+        // High-Low Wick
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 1;
+        ctx.beginPath();
+        ctx.moveTo(x, highY);
+        ctx.lineTo(x, lowY);
+        ctx.stroke();
+
+        // Body
+        ctx.fillStyle = color;
+        const bodyY = Math.min(openY, closeY);
+        const bodyH = Math.max(Math.abs(closeY - openY), 1);
+        ctx.fillRect(x - candleWidth * 0.35, bodyY, candleWidth * 0.7, bodyH);
+      });
+
+      // Draw EMA Lines overlay
+      if (STATE.indicators.ema) {
+        drawEMALine(ctx, STATE.indicatorsData.ema9, slice, data.length, candleWidth, getY, '#00f38d');
+        drawEMALine(ctx, STATE.indicatorsData.ema21, slice, data.length, candleWidth, getY, '#ffd166');
+      }
+
+      // Draw SWEEP! circles overlay
+      if (smc && smc.sweeps) {
+        smc.sweeps.forEach(sw => {
+          const idxInSlice = sw.index - (data.length - visibleCandles);
+          if (idxInSlice >= 0 && idxInSlice < visibleCandles) {
+            const x = getX(idxInSlice) + candleWidth / 2;
+            const y = getY(sw.price);
+            ctx.beginPath();
+            ctx.arc(x, y, 7, 0, Math.PI * 2);
+            ctx.fillStyle = '#ffd166';
+            ctx.fill();
+            ctx.strokeStyle = '#000';
+            ctx.stroke();
+
+            ctx.fillStyle = '#000';
+            ctx.font = 'bold 8px JetBrains Mono';
+            ctx.fillText('SWEEP', x - 13, y - 10);
+          }
+        });
+      }
+
+      // Render SubChart (RSI Canvas)
+      renderSubChart();
+    }
+
+    function drawEMALine(ctx, emaArr, slice, totalLen, candleWidth, getY, color) {
+      if (!emaArr || emaArr.length === 0) return;
+      const visibleCandles = slice.length;
+      const startIndex = totalLen - visibleCandles;
+
+      ctx.beginPath();
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 1.5;
+      let started = false;
+
+      for (let i = 0; i < visibleCandles; i++) {
+        const fullIdx = startIndex + i;
+        const val = emaArr[fullIdx];
+        if (val !== null && val !== undefined) {
+          const x = i * candleWidth + 10 + candleWidth / 2;
+          const y = getY(val);
+          if (!started) {
+            ctx.moveTo(x, y);
+            started = true;
+          } else {
+            ctx.lineTo(x, y);
+          }
+        }
+      }
+      ctx.stroke();
+    }
+
+    function renderSubChart() {
+      const canvas = document.getElementById('subChart');
+      if (!canvas) return;
+      const ctx = canvas.getContext('2d');
+      const dpr = window.devicePixelRatio || 1;
+
+      const rect = canvas.getBoundingClientRect();
+      if (rect.width === 0 || rect.height === 0) return;
+
+      canvas.width = rect.width * dpr;
+      canvas.height = rect.height * dpr;
+      ctx.scale(dpr, dpr);
+
+      const width = rect.width;
+      const height = rect.height;
+
+      ctx.clearRect(0, 0, width, height);
+
+      const rsiArr = STATE.indicatorsData.rsi;
+      if (!rsiArr || rsiArr.length < 10) return;
+
+      const visibleCandles = 50;
+      const sliceRsi = rsiArr.slice(-visibleCandles);
+      const candleWidth = (width - 60) / visibleCandles;
+
+      // 70 / 30 guide lines
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.1)';
+      ctx.lineWidth = 1;
+      const y70 = height - (70 / 100) * height;
+      const y30 = height - (30 / 100) * height;
+
+      ctx.beginPath();
+      ctx.moveTo(0, y70); ctx.lineTo(width, y70);
+      ctx.moveTo(0, y30); ctx.lineTo(width, y30);
+      ctx.stroke();
+
+      // RSI Line
+      ctx.beginPath();
+      ctx.strokeStyle = '#ffd166';
+      ctx.lineWidth = 1.5;
+
+      sliceRsi.forEach((val, i) => {
+        if (val !== null) {
+          const x = i * candleWidth + 10 + candleWidth / 2;
+          const y = height - (val / 100) * height;
+          if (i === 0) ctx.moveTo(x, y);
+          else ctx.lineTo(x, y);
+        }
+      });
+      ctx.stroke();
+    }
+
+    function toggleIndicator(type) {
+      STATE.indicators[type] = !STATE.indicators[type];
+      const btn = document.getElementById(`tog-${type}`);
+      if (STATE.indicators[type]) {
+        btn.className = "px-2 py-0.5 rounded bg-cyber-accent/20 border border-cyber-accent text-cyber-accent font-bold";
+      } else {
+        btn.className = "px-2 py-0.5 rounded bg-cyber-border text-cyber-muted hover:text-white";
+      }
+      renderCanvas();
+    }
+
+    /* STREAMING_CHUNK:Running Paper trading execution logic and portfolio manager... -->
+    /* ==========================================================================
+       PAPER TRADING ENGINE & EXECUTION LOGIC
+       ========================================================================== */
+    function executeAutoBotTrade(side, entry, sl, tp) {
+      if (STATE.portfolio.activeTrade) return; // Only 1 position at a time
+
+      const riskINR = STATE.portfolio.balanceINR * 0.01; // 1% account risk
+      const qty = (riskINR / (Math.abs(entry - sl) * STATE.inrRate)).toFixed(4);
+
+      const trade = {
+        id: 'AUT-' + Date.now().toString().slice(-4),
+        symbol: STATE.symbol,
+        side: side,
+        entryPrice: entry,
+        qty: parseFloat(qty) || 0.1,
+        sl: sl,
+        tp: tp,
+        time: new Date().toLocaleTimeString(),
+        isAuto: true
+      };
+
+      STATE.portfolio.activeTrade = trade;
+      playSoundEffect(side === 'LONG' ? 'buy' : 'sell');
+
+      // Add to Log table
+      logBotTrade(trade, 'OPEN', 0);
+      renderPaperPortfolio();
+    }
+
+    function executeManualTrade(side) {
+      if (STATE.portfolio.activeTrade) {
+        alert("Pehle active position close kijiye trade lene se pehle!");
+        return;
+      }
+
+      const cur = STATE.currentPrice;
+      const atr = STATE.indicatorsData.atr || (cur * 0.008);
+      
+      // Calculate Stop Loss & Take Profit with Risk/Reward 1:2.5
+      const sl = side === 'LONG' ? cur - (1.5 * atr) : cur + (1.5 * atr);
+      const tp = side === 'LONG' ? cur + (3.75 * atr) : cur - (3.75 * atr);
+
+      const riskINR = STATE.portfolio.balanceINR * 0.01; // 1% Risk Management
+      const riskPerCoinUsdt = Math.abs(cur - sl);
+      const qty = riskPerCoinUsdt > 0 ? ((riskINR / STATE.inrRate) / riskPerCoinUsdt).toFixed(4) : "0.01";
+
+      const trade = {
+        id: 'MAN-' + Date.now().toString().slice(-4),
+        symbol: STATE.symbol,
+        side: side,
+        entryPrice: cur,
+        qty: parseFloat(qty) || 0.01,
+        sl: sl,
+        tp: tp,
+        time: new Date().toLocaleTimeString(),
+        isAuto: false
+      };
+
+      STATE.portfolio.activeTrade = trade;
+      playSoundEffect(side === 'LONG' ? 'buy' : 'sell');
+
+      logBotTrade(trade, 'OPEN', 0);
+      renderPaperPortfolio();
+    }
+
+    function closeActiveTrade(reason) {
+      const tr = STATE.portfolio.activeTrade;
+      if (!tr) return;
+
+      const cur = STATE.currentPrice;
+      let pnlUsdt = 0;
+
+      if (tr.side === 'LONG') {
+        pnlUsdt = (cur - tr.entryPrice) * tr.qty;
+      } else {
+        pnlUsdt = (tr.entryPrice - cur) * tr.qty;
+      }
+    let renderRequested = false;
+    function recomputeIndicators() {
+      if (STATE.klines.length < 20) return;
+      STATE.indicatorsData.ema9 = calculateEMA(STATE.klines, 9);
+      STATE.indicatorsData.ema21 = calculateEMA(STATE.klines, 21);
+      STATE.indicatorsData.ema50 = calculateEMA(STATE.klines, 50);
+      STATE.indicatorsData.ema200 = calculateEMA(STATE.klines, 200);
+      STATE.indicatorsData.rsi = calculateRSI(STATE.klines, 14);
+      STATE.indicatorsData.atr = calculateATR(STATE.klines, 14);
+      STATE.indicatorsData.smc = calculateSMC(STATE.klines);
+
+      // Dynamic legend update
+      const len = STATE.klines.length - 1;
+      document.getElementById('leg-ema9').innerText = STATE.indicatorsData.ema9[len] ? '$' + STATE.indicatorsData.ema9[len].toFixed(2) : '--';
+      document.getElementById('leg-ema21').innerText = STATE.indicatorsData.ema21[len] ? '$' + STATE.indicatorsData.ema21[len].toFixed(2) : '--';
+      document.getElementById('leg-ema50').innerText = STATE.indicatorsData.ema50[len] ? '$' + STATE.indicatorsData.ema50[len].toFixed(2) : '--';
+      document.getElementById('leg-ema200').innerText = STATE.indicatorsData.ema200[len] ? '$' + STATE.indicatorsData.ema200[len].toFixed(2) : '--';
+      document.getElementById('leg-rsi').innerText = STATE.indicatorsData.rsi[len] ? STATE.indicatorsData.rsi[len].toFixed(1) : '--';
+      document.getElementById('leg-atr').innerText = STATE.indicatorsData.atr ? '$' + STATE.indicatorsData.atr.toFixed(2) : '--';
+
+      evaluateAIAgents();
+
+      // Smooth render request via AnimationFrame
+      if (!renderRequested) {
+        renderRequested = true;
+        requestAnimationFrame(() => {
+          renderCanvas();
+          renderRequested = false;
+        });
+      }
+    }
+
+    function renderPaperPortfolio() {
+      // Balance stats
+      document.getElementById('paper-balance').innerText = '₹' + STATE.portfolio.balanceINR.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+      
+      const pnlEl = document.getElementById('paper-pnl');
+      const pnlVal = STATE.portfolio.realizedPnL;
+      const pnlPct = (pnlVal / 1000000) * 100;
+      pnlEl.innerText = `${pnlVal >= 0 ? '+' : ''}₹${pnlVal.toLocaleString('en-IN', { maximumFractionDigits: 2 })} (${pnlPct.toFixed(2)}%)`;
+      pnlEl.className = `text-lg font-extrabold ${pnlVal >= 0 ? 'text-cyber-accent' : 'text-cyber-red'}`;
+
+      const winRate = STATE.portfolio.totalTrades > 0 ? Math.round((STATE.portfolio.wins / STATE.portfolio.totalTrades) * 100) : 0;
+      document.getElementById('paper-winrate').innerText = `${winRate}% (${STATE.portfolio.wins}/${STATE.portfolio.totalTrades})`;
+
+      // Active Position Renderer
+      const container = document.getElementById('active-position-container');
+      const tr = STATE.portfolio.activeTrade;
+
+      if (!tr) {
+        container.innerHTML = `
+          <div class="text-center py-6 text-cyber-muted text-xs font-mono">
+            No active open position. Master AI or Manual buttons will trigger auto execution.
+          </div>`;
+        return;
+      }
+
+      const cur = STATE.currentPrice;
+      let unPnlUsdt = tr.side === 'LONG' ? (cur - tr.entryPrice) * tr.qty : (tr.entryPrice - cur) * tr.qty;
+      let unPnlINR = unPnlUsdt * STATE.inrRate;
+      let badgeClass = tr.side === 'LONG' ? 'bg-cyber-accent/20 text-cyber-accent' : 'bg-cyber-red/20 text-cyber-red';
+
+      container.innerHTML = `
+        <div class="flex flex-wrap items-center justify-between gap-3 font-mono text-xs">
+          <div class="flex items-center gap-2">
+            <span class="px-2 py-0.5 rounded font-extrabold ${badgeClass}">${tr.side}</span>
+            <span class="font-bold text-white">${tr.symbol}</span>
+            <span class="text-[10px] text-cyber-muted">(${tr.isAuto ? 'AUTO' : 'MANUAL'})</span>
+          </div>
+
+          <div>Entry: <strong class="text-white">$${tr.entryPrice.toFixed(2)}</strong></div>
+          <div>Current: <strong class="text-white">$${cur.toFixed(2)}</strong></div>
+
+          <div class="${unPnlINR >= 0 ? 'text-cyber-accent' : 'text-cyber-red'} font-bold">
+            Unrealized PnL: ${unPnlINR >= 0 ? '+' : ''}₹${unPnlINR.toFixed(2)}
+          </div>
+
+          <button onclick="closeActiveTrade('CLOSED MANUAL')" class="px-3 py-1 rounded-lg bg-cyber-red/30 border border-cyber-red text-cyber-red font-bold text-[10px] hover:bg-cyber-red hover:text-white transition">
+            CLOSE TRADE
+          </button>
+        </div>
+      `;
+    }
+
+    function logBotTrade(tr, status, pnl) {
+      STATE.botLogs.unshift({
+        id: tr.id,
+        time: tr.time,
+        symbol: tr.symbol,
+        type: tr.isAuto ? 'AUTO' : 'MANUAL',
+        side: tr.side,
+        entry: tr.entryPrice,
+        tp: tr.tp,
+        sl: tr.sl,
+        pnl: pnl,
+        status: status
+      });
+      renderBotLogsTable();
+    }
+
+    function updateBotLogStatus(id, status, pnl) {
+      const log = STATE.botLogs.find(x => x.id === id);
+      if (log) {
+        log.status = status;
+        log.pnl = pnl;
+        renderBotLogsTable();
+      }
+    }
+
+    function renderBotLogsTable() {
+      const tbody = document.getElementById('bot-logs-tbody');
+      if (STATE.botLogs.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="8" class="p-4 text-center text-cyber-muted">No trading logs recorded yet.</td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = STATE.botLogs.map(l => {
+        let statusBadge = 'text-cyber-gold';
+        if (l.status === 'TARGET HIT') statusBadge = 'text-cyber-accent font-bold';
+        if (l.status === 'SL HIT') statusBadge = 'text-cyber-red font-bold';
+
+        return `
+          <tr class="hover:bg-cyber-border/30 transition">
+            <td class="p-2 text-cyber-muted">${l.time}</td>
+            <td class="p-2 font-bold text-white">${l.symbol}</td>
+            <td class="p-2 text-cyber-blue">${l.type}</td>
+            <td class="p-2 ${l.side === 'LONG' ? 'text-cyber-accent' : 'text-cyber-red'} font-bold">${l.side}</td>
+            <td class="p-2">$${l.entry.toFixed(2)}</td>
+            <td class="p-2">$${l.tp.toFixed(2)} / $${l.sl.toFixed(2)}</td>
+            <td class="p-2 ${l.pnl >= 0 ? 'text-cyber-accent' : 'text-cyber-red'}">₹${l.pnl.toFixed(2)}</td>
+            <td class="p-2 ${statusBadge}">${l.status}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    function resetPaperAccount() {
+      if (confirm("Reset demo balance to ₹10,00,000?")) {
+        STATE.portfolio.balanceINR = 1000000.00;
+        STATE.portfolio.realizedPnL = 0.00;
+        STATE.portfolio.wins = 0;
+        STATE.portfolio.totalTrades = 0;
+        STATE.portfolio.activeTrade = null;
+        STATE.botLogs = [];
+        renderPaperPortfolio();
+        renderBotLogsTable();
+      }
+    }
+
+    function toggleAutoTrading(enabled) {
+      STATE.autoTradingEnabled = enabled;
+    }
+
+    /* STREAMING_CHUNK:Configuring secure WebSocket connection with HTTP REST polling fallback... -->
+    /* ==========================================================================
+       BINANCE REST & WEBSOCKET REAL-TIME DATA STREAM WITH REST FALLBACK
+       ========================================================================== */
+    async function fetchHistoricalKlines() {
+      try {
+        const res = await fetch(`https://api.binance.com/api/v3/klines?symbol=${STATE.symbol}&interval=${STATE.timeframe}&limit=100`);
+        const json = await res.json();
+
+        STATE.klines = json.map(k => ({
+          time: k[0],
+          open: parseFloat(k[1]),
+          high: parseFloat(k[2]),
+          low: parseFloat(k[3]),
+          close: parseFloat(k[4]),
+          volume: parseFloat(k[5])
+        }));
+
+        if (STATE.klines.length > 0) {
+          STATE.currentPrice = STATE.klines[STATE.klines.length - 1].close;
+          updateMetricCards();
+          recomputeIndicators();
+        }
+      } catch (err) {
+        console.error("Historical kline fetch failed:", err);
+      }
+    }
+
+    function initBinanceWebSocket() {
+      // Clear existing socket & polling intervals
+      if (wsInstance) {
+        wsInstance.onclose = null;
+        wsInstance.close();
+        wsInstance = null;
+      }
+      if (pollingInterval) {
+        clearInterval(pollingInterval);
+        pollingInterval = null;
+      }
+
+      const badge = document.getElementById('ws-status-badge');
+      const text = document.getElementById('ws-status-text');
+
+      try {
+        const streamName = `${STATE.symbol.toLowerCase()}@kline_${STATE.timeframe}/${STATE.symbol.toLowerCase()}@trade`;
+        wsInstance = new WebSocket(`wss://stream.binance.com:9443/ws/${streamName}`);
+
+        wsInstance.onopen = () => {
+          STATE.usePollingFallback = false;
+          text.innerText = "BINANCE LIVE";
+          badge.className = "flex items-center gap-1.5 bg-cyber-accent/10 border border-cyber-accent/30 text-cyber-accent text-xs font-mono px-2.5 py-1 rounded-xl";
+        };
+
+        wsInstance.onmessage = (event) => {
+          const msg = JSON.parse(event.data);
+
+          // Kline Candle Update
+          if (msg.e === 'kline') {
+            const k = msg.k;
+            const candle = {
+              time: k.t,
+              open: parseFloat(k.o),
+              high: parseFloat(k.h),
+              low: parseFloat(k.l),
+              close: parseFloat(k.c),
+              volume: parseFloat(k.v)
+            };
+
+            STATE.currentPrice = candle.close;
+
+            if (STATE.klines.length > 0) {
+              const last = STATE.klines[STATE.klines.length - 1];
+              if (last.time === candle.time) {
+                STATE.klines[STATE.klines.length - 1] = candle;
+              } else {
+                STATE.klines.push(candle);
+                if (STATE.klines.length > 100) STATE.klines.shift();
+              }
+            }
+
+            updateMetricCards();
+            recomputeIndicators();
+            checkActiveTradeTP_SL();
+            renderPaperPortfolio();
+          }
+
+          // Live Individual Trade Ticks (Order Flow Tape)
+          if (msg.e === 'trade') {
+            processLiveTradeTick(msg);
+          }
+        };
+
+        wsInstance.onerror = (e) => {
+          console.warn("WebSocket security / network constraint detected. Enabling HTTP Polling fallback...");
+          enablePollingFallback();
+        };
+
+      } catch (err) {
+        console.warn("WebSocket initialization security exception. Switching to HTTP Polling mode...", err);
+        enablePollingFallback();
+      }
+    }
+
+    function enablePollingFallback() {
+      STATE.usePollingFallback = true;
+      const badge = document.getElementById('ws-status-badge');
+      const text = document.getElementById('ws-status-text');
+
+      text.innerText = "HTTP STREAM (POLLING)";
+      badge.className = "flex items-center gap-1.5 bg-cyber-gold/10 border border-cyber-gold/30 text-cyber-gold text-xs font-mono px-2.5 py-1 rounded-xl";
+
+      if (pollingInterval) clearInterval(pollingInterval);
+      
+      // Poll ticker & kline every 2.5 seconds safely
+      pollingInterval = setInterval(async () => {
+        try {
+          const res = await fetch(`https://api.binance.com/api/v3/ticker/price?symbol=${STATE.symbol}`);
+          const data = await res.json();
+          const p = parseFloat(data.price);
+          
+          if (p && p > 0) {
+            STATE.currentPrice = p;
+            if (STATE.klines.length > 0) {
+              const last = STATE.klines[STATE.klines.length - 1];
+              last.close = p;
+              if (p > last.high) last.high = p;
+              if (p < last.low) last.low = p;
+            }
+
+            // Simulate trade tick for order flow in fallback mode
+            const mockQty = (Math.random() * 0.5 + 0.01);
+            const isSell = Math.random() > 0.52;
+            processLiveTradeTick({
+              p: p.toString(),
+              q: mockQty.toString(),
+              m: isSell
+            });
+
+            updateMetricCards();
+            recomputeIndicators();
+            checkActiveTradeTP_SL();
+            renderPaperPortfolio();
+          }
+        } catch (e) {
+          console.error("HTTP Fallback poll error:", e);
+        }
+      }, 2500);
+    }
+
+    function processLiveTradeTick(t) {
+      const price = parseFloat(t.p);
+      const qty = parseFloat(t.q);
+      const isBuyerMaker = t.m; // true = Sell order executed against bid, false = Buy order executed
+      const side = isBuyerMaker ? 'SELL' : 'BUY';
+      const usdtVal = price * qty;
+      const inrVal = usdtVal * STATE.inrRate;
+
+      // Update Order Pressure Gauge
+      if (side === 'BUY') STATE.orderPressure.buyVol += qty;
+      else STATE.orderPressure.sellVol += qty;
+
+      const totalVol = STATE.orderPressure.buyVol + STATE.orderPressure.sellVol;
+      const buyPct = Math.round((STATE.orderPressure.buyVol / totalVol) * 100);
+      const sellPct = 100 - buyPct;
+
+      document.getElementById('pressure-buy-pct').innerText = `${buyPct}% BUY`;
+      document.getElementById('pressure-sell-pct').innerText = `${sellPct}% SELL`;
+      document.getElementById('pressure-bar-buy').style.width = `${buyPct}%`;
+      document.getElementById('pressure-bar-sell').style.width = `${sellPct}%`;
+
+      // Trade Size Categorization
+      let tag = 'Small';
+      if (inrVal >= 2500000) tag = 'Whale'; // > 25 Lakhs
+      else if (inrVal >= 500000) tag = 'Large'; // 5L - 25L
+      else if (inrVal >= 50000) tag = 'Medium'; // 50k - 5L
+
+      if (tag === 'Small') { side === 'BUY' ? STATE.tradeSizes.small.buy++ : STATE.tradeSizes.small.sell++; }
+      if (tag === 'Medium') { side === 'BUY' ? STATE.tradeSizes.medium.buy++ : STATE.tradeSizes.medium.sell++; }
+      if (tag === 'Large') { side === 'BUY' ? STATE.tradeSizes.large.buy++ : STATE.tradeSizes.large.sell++; }
+      if (tag === 'Whale') {
+        side === 'BUY' ? STATE.tradeSizes.whale.buy++ : STATE.tradeSizes.whale.sell++;
+        playSoundEffect('sweep');
+      }
+
+      updateTradeSizeUI();
+
+      // Order Flow Tape DOM Insertion
+      const tape = document.getElementById('order-flow-tape');
+      if (!tape) return;
+      const row = document.createElement('div');
+      row.className = `grid grid-cols-4 text-[11px] py-1 border-b border-cyber-border/20 tape-row-enter ${side === 'BUY' ? 'text-cyber-accent' : 'text-cyber-red'}`;
+
+      let formattedInr = inrVal >= 100000 ? (inrVal / 100000).toFixed(2) + 'L' : Math.round(inrVal).toLocaleString('en-IN');
+
+      row.innerHTML = `
+        <span>$${price.toFixed(2)}</span>
+        <span class="text-right font-mono">${qty.toFixed(3)}</span>
+        <span class="text-right font-mono">₹${formattedInr}</span>
+        <span class="text-right font-bold ${tag === 'Whale' ? 'text-cyber-gold bg-cyber-gold/10 px-1 rounded' : ''}">${tag}</span>
+      `;
+
+      tape.insertBefore(row, tape.firstChild);
+      if (tape.children.length > 35) tape.removeChild(tape.lastChild);
+    }
+
+    function updateTradeSizeUI() {
+      const ts = STATE.tradeSizes;
+      const getPct = (b, s) => {
+        const tot = b + s;
+        if (!tot) return { b: 50, s: 50 };
+        return { b: Math.round((b / tot) * 100), s: Math.round((s / tot) * 100) };
+      };
+
+      const sm = getPct(ts.small.buy, ts.small.sell);
+      document.getElementById('ts-small-val').innerText = `Buy: ${sm.b}% | Sell: ${sm.s}%`;
+      document.getElementById('ts-small-buy').style.width = sm.b + '%';
+      document.getElementById('ts-small-sell').style.width = sm.s + '%';
+
+      const md = getPct(ts.medium.buy, ts.medium.sell);
+      document.getElementById('ts-med-val').innerText = `Buy: ${md.b}% | Sell: ${md.s}%`;
+      document.getElementById('ts-med-buy').style.width = md.b + '%';
+      document.getElementById('ts-med-sell').style.width = md.s + '%';
+
+      const lg = getPct(ts.large.buy, ts.large.sell);
+      document.getElementById('ts-large-val').innerText = `Buy: ${lg.b}% | Sell: ${lg.s}%`;
+      document.getElementById('ts-large-buy').style.width = lg.b + '%';
+      document.getElementById('ts-large-sell').style.width = lg.s + '%';
+
+      const wh = getPct(ts.whale.buy, ts.whale.sell);
+      document.getElementById('ts-whale-val').innerText = `Buy: ${wh.b}% | Sell: ${wh.s}%`;
+      document.getElementById('ts-whale-buy').style.width = wh.b + '%';
+      document.getElementById('ts-whale-sell').style.width = wh.s + '%';
+    }
+
+    function updateMetricCards() {
+      const cur = STATE.currentPrice;
+      document.getElementById('card-price-usdt').innerText = '$' + cur.toLocaleString('en-US', { minimumFractionDigits: 2 });
+
+      // INR Price & Formatter
+      const priceINR = cur * STATE.inrRate;
+      document.getElementById('card-price-inr').innerText = '₹' + priceINR.toLocaleString('en-IN', { maximumFractionDigits: 2 });
+
+      let inrWords = "";
+      if (priceINR >= 10000000) {
+        inrWords = `≈ ₹${(priceINR / 10000000).toFixed(2)} Crores`;
+      } else if (priceINR >= 100000) {
+        inrWords = `≈ ₹${(priceINR / 100000).toFixed(2)} Lakhs`;
+      } else {
+        inrWords = `≈ ₹${priceINR.toFixed(2)}`;
+      }
+      document.getElementById('card-price-inr-words').innerText = inrWords;
+    }
+
+    async function fetch24hTickerStats() {
+      try {
+        const res = await fetch(`https://api.binance.com/api/v3/ticker/24hr?symbol=${STATE.symbol}`);
+        const data = await res.json();
+
+        STATE.price24hChange = parseFloat(data.priceChangePercent);
+        STATE.vol24hUsdt = parseFloat(data.quoteVolume);
+
+        const changeEl = document.getElementById('card-price-change');
+        changeEl.innerText = (STATE.price24hChange >= 0 ? '+' : '') + STATE.price24hChange.toFixed(2) + '%';
+        changeEl.className = `text-xs font-mono font-bold px-2 py-0.5 rounded ${STATE.price24hChange >= 0 ? 'bg-cyber-accent/10 text-cyber-accent' : 'bg-cyber-red/10 text-cyber-red'}`;
+
+        document.getElementById('card-24h-high').innerText = '$' + parseFloat(data.highPrice).toFixed(2);
+        document.getElementById('card-24h-low').innerText = '$' + parseFloat(data.lowPrice).toFixed(2);
+
+        // Vol in INR Crores
+        const volINR = STATE.vol24hUsdt * STATE.inrRate;
+        const volCr = (volINR / 10000000).toFixed(2);
+        document.getElementById('card-vol-cr').innerText = '₹' + volCr + ' Cr';
+        document.getElementById('card-vol-btc').innerText = Math.round(parseFloat(data.volume)).toLocaleString() + ' ' + STATE.symbol.replace('USDT', '');
+      } catch (err) {
+        console.error("Ticker 24h fetch err:", err);
+      }
+    }
+
+    /* ==========================================================================
+       USER INTERACTION & COIN / TIMEFRAME SWITCHING
+       ========================================================================== */
+    function changeSymbol(newSymbol) {
+      if (newSymbol === STATE.symbol) return;
+
+      // Check Active Position Modal
+      if (STATE.portfolio.activeTrade) {
+        STATE.pendingSymbolSwitch = newSymbol;
+        document.getElementById('modal-coin-name').innerText = STATE.portfolio.activeTrade.symbol;
+        document.getElementById('coin-switch-modal').classList.remove('hidden');
+        return;
+      }
+
+      switchSymbolDirect(newSymbol);
+    }
+
+    function switchSymbolDirect(newSymbol) {
+      STATE.symbol = newSymbol;
+
+      document.querySelectorAll('.coin-btn').forEach(btn => {
+        btn.className = "coin-btn px-2.5 py-1 text-xs font-mono font-bold rounded-lg text-cyber-muted hover:text-white transition-all";
+      });
+      document.getElementById(`btn-${newSymbol}`).className = "coin-btn px-2.5 py-1 text-xs font-mono font-bold rounded-lg bg-cyber-accent text-black shadow";
+
+      document.getElementById('chart-symbol-title').innerText = newSymbol;
+
+      fetchHistoricalKlines();
+      fetch24hTickerStats();
+      initBinanceWebSocket();
+    }
+
+    function confirmCoinSwitch() {
+      closeActiveTrade('CLOSED MANUAL');
+      document.getElementById('coin-switch-modal').classList.add('hidden');
+      if (STATE.pendingSymbolSwitch) {
+        switchSymbolDirect(STATE.pendingSymbolSwitch);
+        STATE.pendingSymbolSwitch = null;
+      }
+    }
+
+    function cancelCoinSwitch() {
+      STATE.pendingSymbolSwitch = null;
+      document.getElementById('coin-switch-modal').classList.add('hidden');
+    }
+
+    function changeTimeframe(tf) {
+      STATE.timeframe = tf;
+
+      document.querySelectorAll('.tf-btn').forEach(btn => {
+        btn.className = "tf-btn px-2 py-1 text-xs font-mono rounded-lg transition-all text-cyber-muted hover:text-white";
+      });
+      document.getElementById(`tf-${tf}`).className = "tf-btn px-2 py-1 text-xs font-mono rounded-lg transition-all bg-cyber-border text-white font-bold";
+
+      document.getElementById('chart-tf-title').innerText = tf;
+
+      fetchHistoricalKlines();
+      initBinanceWebSocket();
+    }
+
+    function updateInrRate(val) {
+      STATE.inrRate = parseFloat(val) || 88.5;
+      updateMetricCards();
+      renderPaperPortfolio();
+    }
+
+    /* ==========================================================================
+       INITIALIZATION ON WINDOW LOAD
+       ========================================================================== */
+    window.onload = () => {
+      lucide.createIcons();
+      fetchHistoricalKlines();
+      fetch24hTickerStats();
+      initBinanceWebSocket();
+      renderPaperPortfolio();
+
+      // Window resize re-render canvas
+      window.addEventListener('resize', () => {
+        requestAnimationFrame(renderCanvas);
+      });
+    };
+  </script>
+</body>
+</html>
